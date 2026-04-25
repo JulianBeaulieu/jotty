@@ -2561,6 +2561,13 @@
   resolved "https://registry.yarnpkg.com/@tiptap/suggestion/-/suggestion-3.22.3.tgz#268e08b57a17f275b2d85233b2f4dc059c87cfc4"
   integrity sha512-m2c+5gDj2vW7UI1J4JHCKehQUVE12qBhgF+DC+WEWUU8ZrFNf5OEYWQHDNsopa5RRpilfKfhPNbMtXgvGOsk6g==
 
+"@tiptap/y-tiptap@^3.0.3":
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/@tiptap/y-tiptap/-/y-tiptap-3.0.3.tgz#9e20aeab9ca5254ed8f5c40ad4e06d6997e87588"
+  integrity sha512-8UvuV4lTisCE9cMTc/X8kRyTn9edUO7Kball0I6wb17VwZSjNDfh/YKtP4O5vcPawEzFHQIvZGq/k1h37kAf0w==
+  dependencies:
+    lib0 "^0.2.100"
+
 "@tybys/wasm-util@^0.10.0":
   version "0.10.1"
   resolved "https://registry.yarnpkg.com/@tybys/wasm-util/-/wasm-util-0.10.1.tgz#ecddd3205cf1e2d5274649ff0eedd2991ed7f414"
@@ -6060,7 +6067,7 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
-lib0@^0.2.109, lib0@^0.2.47, lib0@^0.2.74, lib0@^0.2.85, lib0@^0.2.87, lib0@^0.2.99:
+lib0@^0.2.100, lib0@^0.2.109, lib0@^0.2.47, lib0@^0.2.74, lib0@^0.2.85, lib0@^0.2.87, lib0@^0.2.99:
   version "0.2.117"
   resolved "https://registry.yarnpkg.com/lib0/-/lib0-0.2.117.tgz#6c3f926475d28904af05b590703cbbbc29475716"
   integrity sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw==
