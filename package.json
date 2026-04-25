@@ -35,7 +35,7 @@
     "@rcode-link/tiptap-drawio": "1.0.21",
     "@tiptap/extension-bubble-menu": "^3.8.0",
     "@tiptap/extension-code-block": "^3.4.4",
-    "@tiptap/extension-collaboration": "^3.22.4",
+    "@tiptap/extension-collaboration": "^3.22.3",
     "@tiptap/extension-collaboration-cursor": "^2.26.2",
     "@tiptap/extension-color": "^3.8.0",
     "@tiptap/extension-highlight": "^3.8.0",
@@ -113,6 +113,7 @@
     "zustand": "5.0.6"
   },
   "resolutions": {
+    "@tiptap/core": "3.22.3",
     "lodash-es": "4.18.1",
     "lodash": "4.18.1",
     "nanoid": "3.3.8",
