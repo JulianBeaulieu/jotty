@@ -201,7 +201,7 @@ vi.mock("@/app/_utils/checklist-utils", () => ({
   getCompletionRate: vi.fn().mockReturnValue(0),
 }));
 
-export const mockLock = vi.fn().mockResolvedValue(undefined);
+export const mockLock = vi.fn().mockResolvedValue(async () => {});
 export const mockUnlock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("proper-lockfile", () => ({
@@ -225,7 +225,7 @@ export function resetAllMocks() {
   mockFs.rename.mockReset();
   mockFs.rm.mockReset();
   mockFs.unlink.mockReset();
-  mockLock.mockReset();
+  mockLock.mockReset().mockResolvedValue(async () => {});
   mockUnlock.mockReset();
 }
 

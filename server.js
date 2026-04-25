@@ -65,6 +65,75 @@ const connectedClients = new Map();
 
 const wss = new WebSocketServer({ noServer: true });
 
+// Dedicated WS server for Hocuspocus collaboration upgrades (/_ws/collab/*).
+const collabWss = new WebSocketServer({ noServer: true });
+
+function buildCollabFetchRequest(req) {
+  // Hocuspocus expects a Fetch-API-like Request: it only reads `request.url`
+  // (full URL string) and `request.headers` (Headers instance). Build a
+  // minimal shim around the Node IncomingMessage.
+  const proto =
+    process.env.HTTPS === "true" || req.headers["x-forwarded-proto"] === "https"
+      ? "https"
+      : "http";
+  const host = req.headers.host || "localhost";
+  const fullUrl = `${proto}://${host}${req.url || "/"}`;
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) {
+      value.forEach((v) => headers.append(key, String(v)));
+    } else if (value !== undefined) {
+      headers.append(key, String(value));
+    }
+  }
+  return { url: fullUrl, headers };
+}
+
+collabWss.on("connection", (ws, req) => {
+  try {
+    const { getCollabServer } = require("./app/_server/collab/server.cjs");
+    const collab = getCollabServer();
+    const fetchRequest = buildCollabFetchRequest(req);
+    const clientConnection = collab.handleConnection(ws, fetchRequest);
+
+    ws.on("message", (data) => {
+      try {
+        const buf =
+          data instanceof Uint8Array
+            ? data
+            : Array.isArray(data)
+              ? Buffer.concat(data)
+              : Buffer.from(data);
+        clientConnection.handleMessage(
+          buf instanceof Uint8Array ? buf : new Uint8Array(buf)
+        );
+      } catch (err) {
+        console.error("Collab message error:", err);
+      }
+    });
+
+    ws.on("close", (code, reason) => {
+      try {
+        clientConnection.handleClose({
+          code,
+          reason: reason ? reason.toString() : "",
+        });
+      } catch (err) {
+        console.error("Collab close error:", err);
+      }
+    });
+
+    ws.on("error", (err) => {
+      console.error("Collab WS error:", err);
+    });
+  } catch (err) {
+    console.error("Collab connection setup failed:", err);
+    try {
+      ws.close();
+    } catch {}
+  }
+});
+
 wss.on("connection", (ws, req) => {
   const connectionId = crypto.randomUUID();
   const username = req._wsUsername;
@@ -135,6 +204,30 @@ app.prepare().then(() => {
 
   server.on("upgrade", (req, socket, head) => {
     const { pathname } = parse(req.url);
+
+    if (pathname && pathname.startsWith("/_ws/collab/")) {
+      try {
+        const username = authenticateWs(req);
+        if (!username) {
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
+        }
+        // Eagerly initialize the singleton so any startup error surfaces
+        // before the WS upgrade completes.
+        require("./app/_server/collab/server.cjs").getCollabServer();
+        collabWss.handleUpgrade(req, socket, head, (ws) => {
+          collabWss.emit("connection", ws, req);
+        });
+      } catch (err) {
+        console.error("Collab upgrade failed:", err);
+        try {
+          socket.destroy();
+        } catch {}
+      }
+      return;
+    }
+
     if (pathname === "/_ws") {
       const username = authenticateWs(req);
       if (!username) {

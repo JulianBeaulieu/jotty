@@ -10,6 +10,8 @@ import {
 } from "@/app/_consts/files";
 import fs from "fs/promises";
 import path from "path";
+import crypto from "crypto";
+import * as properLockfile from "proper-lockfile";
 import { Modes } from "@/app/_types/enums";
 
 export interface OrderData {
@@ -147,8 +149,29 @@ export const serverReadFile = async (
 };
 
 export const serverWriteFile = async (filePath: string, content: string) => {
-  await ensureDir(path.dirname(filePath));
-  await fs.writeFile(filePath, content, "utf-8");
+  const dir = path.dirname(filePath);
+  await ensureDir(dir);
+  try {
+    // dynamic require so this stays a CJS-cross-import that doesn't break ESM build
+    // Path: app/_server/actions/file/ -> ../../collab/echo-suppression.cjs
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const echo = require("../../collab/echo-suppression.cjs");
+    echo.markSelfWrite(filePath, content);
+  } catch {
+    // echo-suppression module optional; safe to ignore
+  }
+  const release = await properLockfile.lock(dir, {
+    retries: { retries: 30, factor: 1.2, minTimeout: 25, maxTimeout: 200 },
+    realpath: false,
+    stale: 5000,
+  });
+  try {
+    const tmpPath = `${filePath}.tmp-${crypto.randomBytes(6).toString("hex")}`;
+    await fs.writeFile(tmpPath, content, "utf-8");
+    await fs.rename(tmpPath, filePath);
+  } finally {
+    await release();
+  }
 };
 
 export const serverDeleteFile = async (filePath: string) => {

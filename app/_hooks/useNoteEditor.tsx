@@ -23,6 +23,9 @@ import { useAppMode } from "@/app/_providers/AppModeProvider";
 import { getUserByNote } from "../_server/actions/users";
 import { extractYamlMetadata } from "@/app/_utils/yaml-metadata-utils";
 import { ConfirmModal } from "@/app/_components/GlobalComponents/Modals/ConfirmationModals/ConfirmModal";
+import { COLLAB_ENABLED } from "@/app/_consts/collab";
+import { useCollabProvider } from "@/app/_hooks/useCollabProvider";
+import { buildCollabExtensions } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/EditorUtils/collabExtensions";
 
 interface UseNoteEditorProps {
   note: Note;
@@ -142,8 +145,48 @@ export const useNoteEditor = ({
     setHasUnsavedChanges(contentIsDirty || titleChanged || categoryChanged);
   }, [contentIsDirty, title, category, note, isEditing]);
 
+  // fccview is onto you!
+  const collabRichEnabled =
+    COLLAB_ENABLED &&
+    !note.encrypted &&
+    !isMarkdownMode &&
+    !isMinimalMode &&
+    !!note.id &&
+    !!(note.owner || user?.username);
+  const collabMarkdownEnabled =
+    COLLAB_ENABLED &&
+    !note.encrypted &&
+    (isMarkdownMode || isMinimalMode) &&
+    !!note.id &&
+    !!(note.owner || user?.username);
+  const collabEnabled = collabRichEnabled || collabMarkdownEnabled;
+
+  // Failsafe approach: same documentName for both rich and markdown modes. Server seeds a
+  // Y.XmlFragment regardless; the markdown editor reads from a separate Y.Text("markdown-source")
+  // fragment on the same Y.Doc, so the unused XmlFragment is wasted server work but harmless.
+  // A future server-coordinated change can pass `?mode=markdown` to skip the prosemirror seed.
+  const documentName = collabEnabled
+    ? `${note.owner || user?.username}/${note.category || "Uncategorized"}/${note.id}`
+    : null;
+
+  const { ydoc, provider, status: collabStatus } = useCollabProvider({
+    documentName,
+    enabled: collabEnabled,
+  });
+
+  const collabExtensionsArray = useMemo(() => {
+    if (!ydoc || !provider || !user?.username) return null;
+    return buildCollabExtensions({ ydoc, provider, username: user.username });
+  }, [ydoc, provider, user?.username]);
+
   const handleSave = useCallback(
     async (autosaveNotes = false, passphrase?: string) => {
+      // Yjs/Hocuspocus owns persistence when collab is active. Saving here would
+      // overwrite the live Y.Doc with the local stale `editorContent` string.
+      if (collabEnabled) {
+        return;
+      }
+
       if (isEditingEncrypted && !passphrase) {
         console.error("Cannot save encrypted note without passphrase");
         return;
@@ -258,6 +301,7 @@ export const useNoteEditor = ({
       onUpdate,
       router,
       isEditingEncrypted,
+      collabEnabled,
     ]
   );
 
@@ -270,7 +314,8 @@ export const useNoteEditor = ({
       autosaveNotes &&
       isEditMode &&
       hasUnsavedChanges &&
-      !isEditingEncrypted
+      !isEditingEncrypted &&
+      !collabEnabled
     ) {
       autosaveTimeoutRef.current = setTimeout(() => {
         setStatus((prev) => ({ ...prev, isAutoSaving: true }));
@@ -292,6 +337,7 @@ export const useNoteEditor = ({
     handleSave,
     user?.notesDefaultMode,
     isEditingEncrypted,
+    collabEnabled,
   ]);
 
   useEffect(() => {
@@ -453,6 +499,13 @@ export const useNoteEditor = ({
     setIsPrinting,
     isEditingEncrypted,
     handleEditEncrypted,
+    collabEnabled,
+    collabRichEnabled,
+    collabMarkdownEnabled,
+    collabExtensionsArray,
+    ydoc,
+    provider,
+    collabStatus,
     DeleteModal: () => (
       <ConfirmModal
         isOpen={showDeleteModal}

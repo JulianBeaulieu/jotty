@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sun03Icon, GibbousMoonIcon } from "hugeicons-react";
 import { useTranslations } from "next-intl";
 import { ConfirmModal } from "@/app/_components/GlobalComponents/Modals/ConfirmationModals/ConfirmModal";
@@ -30,6 +30,27 @@ export const DrawioNodeView = ({
     : configuredDrawioUrl;
 
   const drawioUrl = `${drawioBaseUrl}/?embed=1&ui=kennedy&spin=1&proto=json&saveAndExit=1&noSaveBtn=0`;
+
+  // Debounce batches large diagram/svg payload writes so Y.Doc sync isn't flooded under live collab.
+  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedUpdateAttributes = useCallback(
+    (attrs: Record<string, any>) => {
+      if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = setTimeout(() => {
+        updateAttributes(attrs);
+        updateTimerRef.current = null;
+      }, 500);
+    },
+    [updateAttributes]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -87,7 +108,7 @@ export const DrawioNodeView = ({
               );
             }
 
-            updateAttributes({
+            debouncedUpdateAttributes({
               diagramData: xml,
             });
           } else if (message.event === "export") {
@@ -108,7 +129,7 @@ export const DrawioNodeView = ({
               }
             }
 
-            updateAttributes({
+            debouncedUpdateAttributes({
               svgData: svgData,
             });
 
@@ -124,7 +145,7 @@ export const DrawioNodeView = ({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [node.attrs.diagramData, updateAttributes, drawioBaseUrl]);
+  }, [node.attrs.diagramData, debouncedUpdateAttributes, drawioBaseUrl]);
 
   const openDrawio = () => {
     setIsEditing(true);

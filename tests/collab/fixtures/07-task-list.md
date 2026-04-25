@@ -1,0 +1,4 @@
+- [ ] write tests
+- [x] read context
+- [ ] ship feature
+- [x] take a break

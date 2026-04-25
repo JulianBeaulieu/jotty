@@ -31,6 +31,7 @@ import { ExcalidrawExtension } from "@/app/_components/FeatureComponents/Notes/P
 import { CalloutExtension } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/CustomExtensions/CalloutExtension";
 import { generateCustomHtmlExtensions } from "@/app/_utils/custom-html-utils";
 import { getContrastColor } from "@/app/_utils/color-utils";
+import type { Extension, Node, Mark } from "@tiptap/core";
 
 interface OverlayCallbacks {
   onImageClick: (position: any) => void;
@@ -55,11 +56,16 @@ interface EditorData {
   tags?: string[];
 }
 
+interface CollabConfig {
+  extensions: Array<Extension | Node | Mark>;
+}
+
 export const createEditorExtensions = (
   callbacks: OverlayCallbacks,
   editorSettings?: EditorSettings,
   editorData?: EditorData,
-  t?: (key: string) => string
+  t?: (key: string) => string,
+  collab?: CollabConfig
 ) => {
   const settings = editorSettings || {
     enableSlashCommands: true,
@@ -68,15 +74,20 @@ export const createEditorExtensions = (
     enableBilateralLinks: true,
   };
 
+  const starterKitConfig: Record<string, any> = {
+    codeBlock: false,
+    underline: false,
+    link: false,
+    listItem: false,
+    bulletList: false,
+    hardBreak: false,
+  };
+  if (collab) {
+    starterKitConfig.history = false;
+  }
+
   const extensions = [
-    StarterKit.configure({
-      codeBlock: false,
-      underline: false,
-      link: false,
-      listItem: false,
-      bulletList: false,
-      hardBreak: false,
-    }),
+    StarterKit.configure(starterKitConfig),
     ...generateCustomHtmlExtensions(),
     DetailsExtension,
     CalloutExtension,
@@ -220,6 +231,10 @@ export const createEditorExtensions = (
       content: "listItem+",
     }),
   ];
+
+  if (collab) {
+    extensions.push(...(collab.extensions as any));
+  }
 
   return extensions;
 };

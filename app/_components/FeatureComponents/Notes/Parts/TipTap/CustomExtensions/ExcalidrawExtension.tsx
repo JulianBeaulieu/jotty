@@ -3,7 +3,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Sun03Icon, GibbousMoonIcon } from "hugeicons-react";
 import dynamic from "next/dynamic";
@@ -27,6 +27,27 @@ export const ExcalidrawNodeView = ({
   const [initialData, setInitialData] = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const themeMode = node.attrs.themeMode || "light";
+
+  // Debounce batches large diagram/svg payload writes so Y.Doc sync isn't flooded under live collab.
+  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedUpdateAttributes = useCallback(
+    (attrs: Record<string, any>) => {
+      if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = setTimeout(() => {
+        updateAttributes(attrs);
+        updateTimerRef.current = null;
+      }, 500);
+    },
+    [updateAttributes]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -95,7 +116,7 @@ export const ExcalidrawNodeView = ({
       svg.setAttribute("style", "max-width: 100%; height: auto;");
       const svgString = svg.outerHTML;
 
-      updateAttributes({
+      debouncedUpdateAttributes({
         diagramData: JSON.stringify(sceneData),
         svgData: svgString,
       });

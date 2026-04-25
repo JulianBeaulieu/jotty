@@ -2,6 +2,9 @@ import {
   TiptapEditor,
   TiptapEditorRef,
 } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/TipTapEditor";
+import type { Extension, Node, Mark } from "@tiptap/core";
+import type * as Y from "yjs";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
 import { UnifiedMarkdownRenderer } from "@/app/_components/FeatureComponents/Notes/Parts/UnifiedMarkdownRenderer";
 import { ReferencedBySection } from "@/app/_components/FeatureComponents/Notes/Parts/ReferencedBySection";
 import { ReadingProgressBar } from "@/app/_components/GlobalComponents/Layout/ReadingProgressBar";
@@ -12,6 +15,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { getReferences } from "@/app/_utils/indexes-utils";
 import { usePermissions } from "@/app/_providers/PermissionsProvider";
 import { MinimalModeEditor } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/MinimalModeEditor";
+import MarkdownCollabEditor from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/MarkdownCollabEditor";
 import { LockKeyIcon, ViewIcon, SquareUnlock01Icon } from "hugeicons-react";
 import { Button } from "@/app/_components/GlobalComponents/Buttons/Button";
 import {
@@ -35,6 +39,11 @@ interface NoteEditorContentProps {
   onOpenDecryptModal?: () => void;
   onOpenViewModal?: () => void;
   isEditingEncrypted?: boolean;
+  collabEnabled?: boolean;
+  collabMarkdownEnabled?: boolean;
+  collabExtensions?: Array<Extension | Node | Mark> | null;
+  ydoc?: Y.Doc | null;
+  provider?: HocuspocusProvider | null;
 }
 
 export const NoteEditorContent = ({
@@ -48,6 +57,11 @@ export const NoteEditorContent = ({
   onOpenDecryptModal,
   onOpenViewModal,
   isEditingEncrypted,
+  collabEnabled,
+  collabMarkdownEnabled,
+  collabExtensions,
+  ydoc,
+  provider,
 }: NoteEditorContentProps) => {
   const t = useTranslations();
   const { user, linkIndex, notes, checklists, appSettings } = useAppMode();
@@ -148,6 +162,21 @@ export const NoteEditorContent = ({
   }
 
   if (isMinimalMode) {
+    // fccview is onto you!
+    if (collabMarkdownEnabled && ydoc && provider && isEditMode) {
+      return (
+        <div className="flex-1 h-full pb-10 lg:pb-0">
+          <MarkdownCollabEditor
+            ydoc={ydoc}
+            provider={provider}
+            readOnly={!isEditMode}
+            initialValue={encrypted ? editorContent : noteContent || ""}
+            onChange={(md) => onEditorContentChange(md, true, true)}
+            className="w-full h-full p-4 bg-transparent outline-none resize-none font-mono text-sm"
+          />
+        </div>
+      );
+    }
     return (
       <div className="flex-1 h-full pb-10 lg:pb-0">
         <MinimalModeEditor
@@ -170,6 +199,10 @@ export const NoteEditorContent = ({
           tableSyntax={user?.tableSyntax}
           notes={notes}
           checklists={checklists}
+          collabEnabled={collabEnabled}
+          collabExtensions={collabExtensions}
+          ydoc={ydoc}
+          provider={provider}
         />
       ) : (
         <>

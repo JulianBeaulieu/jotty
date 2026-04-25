@@ -1,5 +1,9 @@
 import { Editor, useEditor } from "@tiptap/react";
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useMemo } from "react";
+import type { Extension, Node, Mark } from "@tiptap/core";
+import type * as Y from "yjs";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
+import { CollabPresenceBadge } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/CollabPresenceBadge";
 import { TiptapToolbar } from "@/app/_components/FeatureComponents/Notes/Parts/TipTap/Toolbar/TipTapToolbar";
 import { UploadOverlay } from "@/app/_components/GlobalComponents/FormElements/UploadOverlay";
 import { CompactImageResizeOverlay } from "@/app/_components/FeatureComponents/Notes/Parts/FileAttachment/CompactImageResizeOverlay";
@@ -38,6 +42,10 @@ type TiptapEditorProps = {
   tableSyntax?: TableSyntax;
   notes?: any[];
   checklists?: any[];
+  collabEnabled?: boolean;
+  collabExtensions?: Array<Extension | Node | Mark> | null;
+  ydoc?: Y.Doc | null;
+  provider?: HocuspocusProvider | null;
 };
 
 export interface TiptapEditorRef {
@@ -49,7 +57,20 @@ export interface TiptapEditorRef {
 }
 
 export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
-  ({ content, onChange, tableSyntax, notes, checklists }, ref) => {
+  (
+    {
+      content,
+      onChange,
+      tableSyntax,
+      notes,
+      checklists,
+      collabEnabled,
+      collabExtensions,
+      provider,
+    },
+    ref,
+  ) => {
+    const collabActive = !!(collabEnabled && collabExtensions && provider);
     const { user, appSettings, tagsIndex } = useAppMode();
     const { compactMode } = useSettings();
     const t = useTranslations();
@@ -115,28 +136,37 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
       setLinkRequestPending(true);
     }, []);
 
+    const editorExtensions = useMemo(
+      () =>
+        createEditorExtensions(
+          {
+            onImageClick: (pos) => {
+              if (imageClickRef.current) {
+                imageClickRef.current(pos);
+              }
+            },
+            onTableSelect: tableToolbar.handleTableSelect,
+            onLinkRequest: handleRichEditorLinkRequest,
+          },
+          editorSettings,
+          {
+            notes: notes || [],
+            checklists: checklists || [],
+            username: user?.username || "",
+            tags: Object.keys(tagsIndex || {}),
+          },
+          t,
+          collabActive && collabExtensions
+            ? { extensions: collabExtensions }
+            : undefined,
+        ),
+      [collabActive, collabExtensions],
+    );
+
     const editor: Editor | null = useEditor({
       immediatelyRender: false,
-      extensions: createEditorExtensions(
-        {
-          onImageClick: (pos) => {
-            if (imageClickRef.current) {
-              imageClickRef.current(pos);
-            }
-          },
-          onTableSelect: tableToolbar.handleTableSelect,
-          onLinkRequest: handleRichEditorLinkRequest,
-        },
-        editorSettings,
-        {
-          notes: notes || [],
-          checklists: checklists || [],
-          username: user?.username || "",
-          tags: Object.keys(tagsIndex || {}),
-        },
-        t,
-      ),
-      content: "",
+      extensions: editorExtensions as any,
+      content: collabActive ? "" : "",
       onUpdate: ({ editor }) => {
         if (!isMarkdownMode) {
           richEditorWasEditedRef.current = true;
@@ -260,6 +290,10 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
     useEffect(() => {
       if (editor && !isInitialized.current) {
         isInitialized.current = true;
+        if (collabActive) {
+          // Yjs hydrates content from the Y.Doc; skip local setContent.
+          return;
+        }
         setTimeout(() => {
           if (isMarkdownMode) {
             const htmlContent = convertMarkdownToHtml(markdownContent);
@@ -272,7 +306,7 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
           }
         }, 0);
       }
-    }, [editor, content, isMarkdownMode, markdownContent]);
+    }, [editor, content, isMarkdownMode, markdownContent, collabActive]);
 
     useEffect(() => {
       return () => {
@@ -368,6 +402,9 @@ export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
             linkRequestHasSelection={linkRequestHasSelection}
             onLinkRequestHandled={() => setLinkRequestPending(false)}
           />
+          {collabActive && (
+            <CollabPresenceBadge provider={provider ?? null} />
+          )}
         </div>
 
         <UploadOverlay

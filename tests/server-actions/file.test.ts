@@ -218,17 +218,22 @@ describe("File Actions", () => {
   });
 
   describe("serverWriteFile", () => {
-    it("should ensure directory and write file", async () => {
+    it("should ensure directory and write file atomically (tmp + rename)", async () => {
       mockFs.access.mockRejectedValue(new Error("ENOENT"));
       mockFs.mkdir.mockResolvedValue(undefined);
       mockFs.writeFile.mockResolvedValue(undefined);
+      mockFs.rename.mockResolvedValue(undefined);
 
       await serverWriteFile("/path/to/file.txt", "content");
 
       expect(mockFs.writeFile).toHaveBeenCalledWith(
-        "/path/to/file.txt",
+        expect.stringMatching(/^\/path\/to\/file\.txt\.tmp-[a-f0-9]+$/),
         "content",
         "utf-8",
+      );
+      expect(mockFs.rename).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/path\/to\/file\.txt\.tmp-[a-f0-9]+$/),
+        "/path/to/file.txt",
       );
     });
   });

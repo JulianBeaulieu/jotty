@@ -5,6 +5,7 @@ import { UnsavedChangesModal } from "@/app/_components/GlobalComponents/Modals/C
 import { useNoteEditor } from "@/app/_hooks/useNoteEditor";
 import { NoteEditorHeader } from "@/app/_components/FeatureComponents/Notes/Parts/NoteEditor/NoteEditorHeader";
 import { NoteEditorContent } from "@/app/_components/FeatureComponents/Notes/Parts/NoteEditor/NoteEditorContent";
+import { EncryptedCollabNotice } from "@/app/_components/FeatureComponents/Notes/Parts/EncryptedCollabNotice";
 import { useRef } from "react";
 import { TableOfContents } from "../TableOfContents";
 import { useSearchParams } from "next/navigation";
@@ -49,6 +50,7 @@ export const NoteEditor = ({
 
       <div className="flex h-full w-full relative">
         <div className="flex-1 overflow-y-auto jotty-scrollable-content max-h-[95vh]">
+          <EncryptedCollabNotice isEncrypted={!!note.encrypted} />
           <NoteEditorContent
             isEditing={viewModel.isEditing}
             noteContent={note.content}
@@ -60,6 +62,11 @@ export const NoteEditor = ({
             onOpenDecryptModal={() => decryptModalRef.current?.()}
             onOpenViewModal={() => viewModalRef.current?.()}
             isEditingEncrypted={viewModel.isEditingEncrypted}
+            collabEnabled={viewModel.collabEnabled}
+            collabMarkdownEnabled={viewModel.collabMarkdownEnabled}
+            collabExtensions={viewModel.collabExtensionsArray}
+            ydoc={viewModel.ydoc}
+            provider={viewModel.provider}
           />
         </div>
 

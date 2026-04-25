@@ -59,6 +59,7 @@ A self-hosted app for your checklists and notes.
 - [Multi-Factor Authentication (MFA)](#multi-factor-authentication)
 - [Translations](#translations)
 - [Custom Themes and Emojis](#custom-themes-and-emojis)
+- [Real-time Collaboration](#real-time-collaboration)
 
 <p align="center">
   <br />
@@ -80,6 +81,7 @@ A self-hosted app for your checklists and notes.
 - **Encryption:** Full on PGP encryption, read more about it in [howto/ENCRYPTION.md](howto/ENCRYPTION.md)
 - **API Access:** Programmatic access to your checklists and notes via REST API with authentication.
 - **PWA** Jotty doesn't have a native app, but it's built mobile first. Once installed the PWA on your device it will feel like you installed it from the app store. There's also partial offline caching, as long as you visited a page while online Jotty will allow you to re-visit it while offline. At the moment there's no current support for offline CRUD operation.
+- **Real-time Collaboration (experimental):** Multi-user live editing of shared notes via Yjs over WebSocket, with cursor presence. Opt-in via `NEXT_PUBLIC_COLLAB_ENABLED`. See [Real-time Collaboration](#real-time-collaboration).
 
 <a id="getting-started"></a>
 
@@ -247,6 +249,27 @@ You can completely customize your PWA by creating an override manifest file. Thi
 
 📖 **For the complete customisation documentation, see [howto/CUSTOMISATIONS.md](howto/CUSTOMISATIONS.md)**
 📖 **For better understanding on how the PWA works see [howto/PWA.md](howto/PWA.md)**
+
+<a id="real-time-collaboration"></a>
+
+## Real-time Collaboration (experimental)
+
+`jotty·page` supports live multi-user editing of notes via [Yjs](https://yjs.dev) over WebSocket, with cursor presence. When enabled, two users opening the same shared note edit the same document in real time. The on-disk `.md` file remains the source of truth and is updated on a 2 second debounce.
+
+**Enable:**
+
+1. Set `NEXT_PUBLIC_COLLAB_ENABLED=true` in your environment (this flag is read by both server and client).
+2. Restart the server. Collab traffic flows through the existing custom server on the WebSocket path `/_ws/collab/`.
+3. Open a shared, unencrypted note in rich-text mode — a presence badge appears once two or more sessions are connected.
+
+**Limitations (MVP):**
+
+- Encrypted notes are excluded — the server cannot decrypt without weakening the encryption model.
+- Markdown-mode and minimal-mode editors are excluded — rich (TipTap) mode only.
+- Single-process only; multi-replica deployments would need a Hocuspocus Redis adapter (not yet wired).
+- Custom node types (Mermaid, Drawio, Excalidraw, Callout, TagLink) round-trip imperfectly through the markdown↔Y.Doc transformer.
+
+📖 **For the complete operator and developer documentation, see [docs/COLLAB.md](docs/COLLAB.md)**
 
 ## Community shouts
 
